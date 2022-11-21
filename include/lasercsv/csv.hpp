@@ -46,36 +46,7 @@ public:
     }
 
 private:
-    void parseFile() {
-        auto row = std::vector<std::string_view>{};
-
-        auto content = _file.content();
-
-        auto current = std::string_view{};
-
-        for (size_t i = 0; i < content.size(); ++i) {
-            auto c = content.at(i);
-
-            if (c == '\n') {
-                _rows.push_back(std::move(row));
-                row.clear();
-                continue;
-            }
-
-            if (c == ',') {
-                row.push_back(current);
-                current = {};
-                continue;
-            }
-
-            if (current.empty()) {
-                current = {&content.at(i), 1};
-            }
-            else {
-                current = {current.data(), current.size() + 1};
-            }
-        }
-    }
+    void parseFile();
 
     const File _file;
     std::vector<std::vector<std::string_view>> _rows;
@@ -97,6 +68,55 @@ inline File::File(std::filesystem::path path) {
     }
 
     _content.shrink_to_fit();
+}
+
+inline void Table::parseFile() {
+    auto row = std::vector<std::string_view>{};
+
+    auto content = _file.content();
+
+    auto current = std::string_view{};
+
+    int rowSize = 0;
+
+    for (size_t i = 0; i < content.size(); ++i) {
+        auto c = content.at(i);
+
+        if (c == '\n') {
+            rowSize = row.size();
+            _rows.push_back(std::move(row));
+            row.clear();
+            row.reserve(rowSize);
+            continue;
+        }
+
+        if (c == ',') {
+            row.push_back(current);
+            current = {};
+            continue;
+        }
+
+        if (!current.empty()) {
+            current = {current.data(), current.size() + 1};
+            continue;
+        }
+
+        if (c == '\"') {
+            for (size_t j = i + 1; j < content.size(); ++j) {
+                auto d = content.at(j);
+                if (d == '\"') {
+                    row.emplace_back(content.data() + i + 1, j - i - 1);
+                    i = j;
+                    break;
+                }
+            }
+            continue;
+        }
+
+        current = {&content.at(i), 1};
+    }
+
+    _rows.push_back(std::move(row));
 }
 
 } // namespace lasercsv
