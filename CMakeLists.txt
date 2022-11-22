@@ -25,3 +25,7 @@ target_link_libraries(
     INTERFACE
     ${CMAKE_THREAD_LIBS_INIT}
     )
+
+add_subdirectory(
+    test
+    )

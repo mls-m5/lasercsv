@@ -14,15 +14,28 @@ public:
     NoCopy() = default;
 
     NoCopy(const NoCopy &) = delete;
-    NoCopy(NoCopy &&) = delete;
+    NoCopy(NoCopy &&) = default;
     NoCopy &operator=(const NoCopy &) = delete;
-    NoCopy &operator=(NoCopy &&) = delete;
+    NoCopy &operator=(NoCopy &&) = default;
+};
+
+class NoCopyNoMove {
+public:
+    NoCopyNoMove() = default;
+
+    NoCopyNoMove(const NoCopyNoMove &) = delete;
+    NoCopyNoMove(NoCopyNoMove &&) = delete;
+    NoCopyNoMove &operator=(const NoCopyNoMove &) = delete;
+    NoCopyNoMove &operator=(NoCopyNoMove &&) = delete;
 };
 
 // Contains all the original data from the file
-class File : NoCopy {
+class File : NoCopyNoMove {
 public:
     File(std::filesystem::path path);
+    File(std::filesystem::path path, std::string content)
+        : _path{path}
+        , _content{std::move(content)} {}
 
     std::string_view content() const {
         return _content;
@@ -103,13 +116,29 @@ private:
     std::string_view _source;
 };
 
+class Table;
+
+class ColumnView {
+    ColumnView(const Table &table, size_t col)
+        : table{table}
+        , col{col} {}
+
+    const Table &table;
+    size_t col = 0;
+};
+
 // Contains the original data
 // If this class is destroyed all std::string_view's values will be invalid
-class Table : NoCopy {
+class Table : NoCopyNoMove {
 public:
     Table(std::filesystem::path path)
         : _file{path} {
         parseFile();
+    }
+
+    static Table fromString(std::string str,
+                            std::filesystem::path path = "memory") {
+        return Table{path, std::move(str)};
     }
 
     std::unique_ptr<Table> create(std::filesystem::path path) {
@@ -120,7 +149,23 @@ public:
         return _rows;
     }
 
+    bool empty() const {
+        return _rows.empty();
+    }
+
+    size_t width() const {
+        return _rows.front().size();
+    }
+
+    size_t height() const {
+        return _rows.size();
+    }
+
 private:
+    Table(std::filesystem::path path, std::string content)
+        : _file(path, std::move(content)) {
+        parseFile();
+    };
     void parseFile();
 
     const File _file;
@@ -161,6 +206,10 @@ inline void Table::parseFile() {
         auto c = content.at(i);
 
         if (c == '\n') {
+            if (!current.empty()) {
+                row.push_back(current);
+                current = {};
+            }
             row.source({content.data() + rowBegin, i - rowBegin});
             rowSize = row.size();
             if (!row.empty()) {
