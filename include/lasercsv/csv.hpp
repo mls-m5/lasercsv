@@ -127,7 +127,8 @@ private:
     std::vector<Row> _rows;
 };
 
-inline File::File(std::filesystem::path path) {
+inline File::File(std::filesystem::path path)
+    : _path{path} {
     auto file = std::ifstream{path};
 
     if (!file) {
@@ -154,6 +155,7 @@ inline void Table::parseFile() {
 
     int rowSize = 0;
     int rowBegin = 0;
+    int currentRowNum = 1;
 
     for (size_t i = 0; i < content.size(); ++i) {
         auto c = content.at(i);
@@ -161,10 +163,13 @@ inline void Table::parseFile() {
         if (c == '\n') {
             row.source({content.data() + rowBegin, i - rowBegin});
             rowSize = row.size();
-            _rows.push_back(std::move(row));
+            if (!row.empty()) {
+                _rows.push_back(std::move(row));
+            }
             row.clear();
             row.reserve(rowSize);
             rowBegin = i + 1;
+            ++currentRowNum;
             continue;
         }
 
@@ -190,7 +195,19 @@ inline void Table::parseFile() {
 
                 if (d == '\"') {
                     row.emplace_back(content.data() + i + 1, j - i - 1);
+                    current = {};
                     i = j;
+
+                    ++i;
+
+                    if (content.at(i) != ',') {
+                        throw std::invalid_argument{
+                            "at " + _file.path().string() + ":" +
+                            std::to_string(currentRowNum) +
+                            ": expected ',' after " +
+                            std::string{content.data() + rowBegin, 10}};
+                    }
+
                     break;
                 }
             }
@@ -200,7 +217,10 @@ inline void Table::parseFile() {
         current = {&content.at(i), 1};
     }
 
-    _rows.push_back(std::move(row));
+    row.source(content.substr(rowBegin));
+    if (!row.empty()) {
+        _rows.push_back(std::move(row));
+    }
 }
 
 } // namespace lasercsv
