@@ -27,6 +27,19 @@ TEST_CASE("trailing comas") {
     EXPECT_EQ(table.height(), 3);
 }
 
+TEST_CASE("convert to types") {
+    auto table = lasercsv::Table::fromString(R"_(
+1,2,
+3,4,
+8,hello,
+)_",
+                                             "test.csv");
+
+    EXPECT_EQ(table.rows().at(0).at(0).as<int>(), 1);
+    EXPECT_EQ(table.rows().at(1).at(1).as<int>(), 4);
+    EXPECT_EQ(table.rows().at(2).at(1).as<std::string>(), "hello");
+}
+
 TEST_CASE("quotation") {
     auto table = lasercsv::Table::fromString(R"_(
 1,2,

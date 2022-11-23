@@ -95,6 +95,10 @@ public:
         return stream;
     }
 
+    operator std::string_view() const {
+        return _content;
+    }
+
 private:
     std::string_view _content;
 };
