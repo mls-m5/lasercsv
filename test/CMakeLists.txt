@@ -12,8 +12,8 @@ function(test testname)
         lasercsv
         )
 
-    add_test(NAME ${testname}-test
-        COMMAND ${testname}-test
+    add_test(NAME test-${testname}
+        COMMAND test-${testname}
         )
 
 endfunction()
